@@ -21,7 +21,6 @@ public class Note {
 
   @Override
   public String toString(){
-    return "note " + startingBeat + " " + endBeat + " " + instrument + " " + pitch + " " + volume
-            + "\n";
+    return "note " + startingBeat + " " + endBeat + " " + instrument + " " + pitch + " " + volume;
   }
 }

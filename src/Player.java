@@ -14,29 +14,28 @@ import javax.sound.midi.Sequencer;
  */
 public class Player {
   public static void main(String[] args){
-
-
-
+    if (args.length != 2) {
+      throw new IllegalArgumentException("Must give two arguments:\n"
+          + "1) the name of the midi file (ex.: \"smoke.mid\")\n"
+          + "2) the name of the new text file (ex.: \"smoke.txt\")");
+    }
+    String midiFile = args[0];
+    String textFile = args[1];
     try {
-
-      Sequence midi = MidiSystem.getSequence(new File("roundabout.mid"));
+      Sequence midi = MidiSystem.getSequence(new File(midiFile));
       MidiParser reader = new MidiParser(midi);
-
-
-        Sequencer seq = null;
-        seq = MidiSystem.getSequencer();
-        seq.open();
-        seq.setSequence(midi);
-        int tempo = (int) (seq.getTempoInMPQ()/midi.getResolution());
-
+      Sequencer seq = MidiSystem.getSequencer();
+      seq.open();
+      seq.setSequence(midi);
+      int tempo = (int) (seq.getTempoInMPQ() / midi.getResolution());
       ArrayList<Note> notes = reader.translateMidiToNotes();
-      FileWriter writer = new FileWriter("roundabout.txt");
-        writer.append("tempo " + tempo+ "\n");
-        for(Note note : notes){
-          writer.append(note.toString());
-
-        }
-        writer.close();
+      FileWriter writer = new FileWriter(textFile);
+      writer.append("tempo " + tempo + "\n");
+      for(Note note : notes){
+        writer.append(note.toString() + "\n");
+      }
+      writer.close();
+      System.exit(0);
     } catch (InvalidMidiDataException e) {
       e.printStackTrace();
     } catch (IOException e) {
