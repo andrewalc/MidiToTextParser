@@ -17,7 +17,7 @@ public class Player {
 
 
     try {
-      String fileName = "MrBlueSky.mid";
+      String fileName = "red.mid";
       MidiParser parser = new MidiParser(fileName);
       parser.writeMidiTextFile();
 
