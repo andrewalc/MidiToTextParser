@@ -13,30 +13,14 @@ import javax.sound.midi.Sequencer;
  * Created by Andrew Alcala on 6/15/2017.
  */
 public class Player {
-  public static void main(String[] args){
-
+  public static void main(String[] args) {
 
 
     try {
+      String fileName = "MrBlueSky.mid";
+      MidiParser parser = new MidiParser(fileName);
+      parser.writeMidiTextFile();
 
-      Sequence midi = MidiSystem.getSequence(new File("roundabout.mid"));
-      MidiParser reader = new MidiParser(midi);
-
-
-        Sequencer seq = null;
-        seq = MidiSystem.getSequencer();
-        seq.open();
-        seq.setSequence(midi);
-        int tempo = (int) (seq.getTempoInMPQ()/midi.getResolution());
-
-      ArrayList<Note> notes = reader.translateMidiToNotes();
-      FileWriter writer = new FileWriter("roundabout.txt");
-        writer.append("tempo " + tempo+ "\n");
-        for(Note note : notes){
-          writer.append(note.toString());
-
-        }
-        writer.close();
     } catch (InvalidMidiDataException e) {
       e.printStackTrace();
     } catch (IOException e) {
