@@ -57,67 +57,101 @@ public class MidiParser {
     ArrayList<Note> notes = new ArrayList<>();
 
     int trackCount = 0;
-    // We will store pitches corresponding to their play ticks in this arraylist
-    ArrayList<ArrayList<Integer[]>> trackByPitch = new ArrayList<>();
+    // We will store messages as int arrays with pitch tick fired and volume in this arraylist.
+    // {pitch, tick, volume}
+
+    // ArrayList<Integer[]> represents the list of all messages contained in an arraylist of a
+    // single track's messages.
+
+    ArrayList<ArrayList<Integer[]>> allNoteOnMsgs = new ArrayList<>();
 
 
     for (Track track : midi.getTracks()) {
-      // instruments default to 0 if track has no Program Change
-      int instrument = 0;
-      for (int i = 0; i < track.size(); i++) {
-        // set this track's instrument, we only need to look at the first instance of a note, all
-        // tracks share the same instrument.
-        MidiEvent instrumentEvent = track.get(i);
-        if (instrumentEvent.getMessage() instanceof ShortMessage) {
-          ShortMessage instrumentMessage = (ShortMessage) instrumentEvent.getMessage();
-          int instrumentCommand = instrumentMessage.getCommand();
-          // If the ShortMessage is a program change, get the instrument.
-          if (instrumentCommand == (int) (ShortMessage.PROGRAM_CHANGE & 0xFF)) {
-            instrument = instrumentMessage.getData1();
-            break;
-          }
-        }
-      }
 
-      // The current track we are parsing needs a place in our Pitch, Tick arraylist
-      trackByPitch.add(new ArrayList<Integer[]>());
+      // The current track we are parsing needs a place in our {Pitch, Tick, volume} arraylist
+      allNoteOnMsgs.add(new ArrayList<Integer[]>());
 
-      // parse through all messages in this track
+      int instrument = getInstrumentOfTrack(track);
+
+
+      // parse through all messages (events) in this track
       for (int i = 0; i < track.size(); i++) {
-        int channel = 0;
         MidiEvent event = track.get(i);
-        // 144 = NOTE ON , 128 == NOTE OFF
-        // @TODO Figure out why some MIDIs do not have note off.
-        //System.out.println(event.getMessage().getStatus());
+
+        int channel = 0;
+        // 144 = NOTE ON , 128 == NOTE OFF, if NOTE ON has volume (velocity) of 0 treat as NOTE OFF.
         if (event.getMessage() instanceof ShortMessage) {
           ShortMessage message = (ShortMessage) event.getMessage();
           // The tick that this message is being fired.
-          int timeOccured = (int) event.getTick();
-          int command = message.getCommand();
+          int tickMsgFired = (int) event.getTick();
+          int msgCommand = message.getCommand();
 
 
           // If the message we have is a NOTE ON message add the pitch, tick pair to our arraylist.
-          if (command == (int) (ShortMessage.NOTE_ON & 0xFF)) {
-            int pitch = message.getData1();
-            trackByPitch.get(trackCount).add(new Integer[]{pitch, timeOccured});
+          if (msgCommand == 144) {
 
-          } else if (command == (int) (ShortMessage.NOTE_OFF & 0xFF)) {
+            int pitch = message.getData1();
+            int volume = message.getData2();
+            // All messages of this track in our NOTE ON arraylist
+            ArrayList<Integer[]> currentTrackNoteOns = allNoteOnMsgs.get(trackCount);
+
+            // If NOTE ON volume == 0, treat as a NOTE OFF and find its matching NOTE ON starting
+            // message. Once found create a note and add it to the list.
+            if(volume == 0){
+              for(int k = 0; k < currentTrackNoteOns.size(); k++){
+                Integer[] noteOnMsg = currentTrackNoteOns.get(k);
+                if(noteOnMsg[0] == pitch){
+                  int startingTickMsgFired = noteOnMsg[1];
+                  int startingBeat = startingTickMsgFired;
+                  int endBeat = tickMsgFired;
+
+                  // Volume was 0, now make sure its the originals.
+                  volume = noteOnMsg[2];
+
+                  // Percussion channel is 9.
+                  // If the message is in the percussion channel, we get keep that channel.
+                  // Current implementation of text Note does not account for channels unfortunately.
+//                if(message.getChannel() == 9){
+//                  channel = 9;
+//                }
+
+
+                  // Create a note and store it.
+                  notes.add(new Note(startingBeat, endBeat, instrument, pitch, volume));
+                  // remove the NOTE ON information from the arraylist of pitch, tick.
+                  currentTrackNoteOns.remove(noteOnMsg);
+                  // We found our 'fake' NOTE ON's corresponding NOTE ON. We don't need to look or
+                  // remove anything else further.
+                  break;
+                }
+              }
+            }else{
+              // This is a real NOTE ON message, add the pitch tick volume to NOTE ON arraylist.
+              currentTrackNoteOns.add(new Integer[]{pitch, tickMsgFired, volume});
+            }
+
+          }
+          // NOTE OFF message found. Find the matching NOTE ON and create a note.
+          else if (msgCommand == 128) {
             int pitch = message.getData1();
             int volume = message.getData2();
             // Some MIDIs have message volumes at 0, 64 is default for those.
+            // @TODO see if this might be a problem with note on volume 0
             if (volume == 0) {
               volume = 64;
             }
             //In our developing arraylist, we want to get the arraylist that represents this track.
-            ArrayList<Integer[]> currentTrack = trackByPitch.get(trackCount);
+            ArrayList<Integer[]> currentTrackNoteOns = allNoteOnMsgs.get(trackCount);
             // Parse our arraylist and find this NOTE OFF msg's corresponding NOTE ON by looking
             // first NOTE ON that matches this NOTE OFF's pitch.
-            for (int j = 0; j < currentTrack.size(); j++) {
-              Integer[] messageInTrack = currentTrack.get(j);
-              if (messageInTrack[0] == pitch) {
-                int startingTimeOccured = messageInTrack[1];
-                int startingBeat = startingTimeOccured;
-                int endBeat = timeOccured;
+            for (int j = 0; j < currentTrackNoteOns.size(); j++) {
+              Integer[] noteOnMsg = currentTrackNoteOns.get(j);
+              if (noteOnMsg[0] == pitch) {
+                int startingTickFired = noteOnMsg[1];
+                int startingBeat = startingTickFired;
+                int endBeat = tickMsgFired;
+
+
                 // Percussion channel is 9.
                 // If the message is in the percussion channel, we get keep that channel.
                 // Current implementation of text Note does not account for channels unfortunately.
@@ -125,10 +159,11 @@ public class MidiParser {
 //                  channel = 9;
 //                }
 
+
                 // convert information into a note and store it.
                 notes.add(new Note(startingBeat, endBeat, instrument, pitch, volume));
-                // remove the NOTE ON information from the arraylist of pitch, tick.
-                currentTrack.remove(messageInTrack);
+                // remove the NOTE ON information from the arraylist of NOTE ONS
+                currentTrackNoteOns.remove(noteOnMsg);
                 // We found our NOTE OFF's corresponding NOTE ON. We don't need to look or remove
                 // anything else further.
                 break;
@@ -152,6 +187,27 @@ public class MidiParser {
     // remove all badnotes from our list of notes.
     notes.removeAll(badNotes);
     return notes;
+  }
+
+  private int getInstrumentOfTrack(Track track) {
+    // instruments default to 0 if track has no Program Change
+    int instrument = 0;
+    // Cycle through all messages in current track.
+    for (int i = 0; i < track.size(); i++) {
+      // set this track's instrument, we only need to look at the first instance of a note, all
+      // tracks share the same instrument.
+      MidiEvent instrumentEvent = track.get(i);
+      if (instrumentEvent.getMessage() instanceof ShortMessage) {
+        ShortMessage instrumentMessage = (ShortMessage) instrumentEvent.getMessage();
+        int instrumentCommand = instrumentMessage.getCommand();
+        // If the ShortMessage is a program change, get the instrument.
+        if (instrumentCommand == (int) (ShortMessage.PROGRAM_CHANGE & 0xFF)) {
+          instrument = instrumentMessage.getData1();
+          break;
+        }
+      }
+    }
+    return instrument;
   }
 
 }

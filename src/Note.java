@@ -1,8 +1,4 @@
-import java.lang.annotation.Documented;
 
-/**
- * Created by Andrew Alcala on 6/15/2017.
- */
 public class Note {
   int startingBeat;
   int endBeat;
