@@ -1,3 +1,4 @@
+package MidiParser.model;
 
 public class Note {
   int startingBeat;
@@ -6,8 +7,8 @@ public class Note {
   int instrument;
   int volume;
 
-  public Note(int startingBeat, int endBeat, int instrument, int pitch, int volume){
-    this.startingBeat =startingBeat;
+  public Note(int startingBeat, int endBeat, int instrument, int pitch, int volume) {
+    this.startingBeat = startingBeat;
     this.endBeat = endBeat;
     this.pitch = pitch;
     this.instrument = instrument;
@@ -16,7 +17,7 @@ public class Note {
 
 
   @Override
-  public String toString(){
+  public String toString() {
     return "note " + startingBeat + " " + endBeat + " " + instrument + " " + pitch + " " + volume;
   }
 }

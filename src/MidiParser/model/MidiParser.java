@@ -1,10 +1,8 @@
+package MidiParser.model;
 
-
-import java.awt.image.ShortLookupTable;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 import javax.sound.midi.*;
@@ -30,6 +28,10 @@ public class MidiParser {
 
   }
 
+  /**
+   * Writes a txt file, translating the midi file's notes to text in the format of the
+   * MusicCreator cs3500 assignment.
+   */
   public void writeMidiTextFile() {
     try {
       ArrayList<Note> notes = this.translateMidiToNotes();
@@ -190,6 +192,13 @@ public class MidiParser {
     return notes;
   }
 
+  /**
+   * Returns the MIDI instrument of a given track, assuming a track's notes all share the same
+   * instrument.
+   *
+   * @param track The track to get an instrument value from.
+   * @return The MIDI instrument value for the given track.
+   */
   private int getInstrumentOfTrack(Track track) {
     // instruments default to 0 if track has no Program Change
     int instrument = 0;

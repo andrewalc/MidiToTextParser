@@ -5,22 +5,19 @@ import java.io.IOException;
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiUnavailableException;
 
-import model.MidiParser;
 
 /**
- * Created by Andrew Alcala on 6/15/2017.
+ * Main method for running a MidiParser.
  */
-public class Player {
+public class RunMidiParser {
   public static void main(String[] args){
-//    if (args.length != 2) {
-//      throw new IllegalArgumentException("Must give two arguments:\n"
-//          + "1) the name of the midi file (ex.: \"smoke.mid\")\n"
-//          + "2) the name of the new text file (ex.: \"smoke.txt\")");
-//    }
-//    String midiFile = args[0];
-//    String textFile = args[1];
+    if (args.length != 1) {
+      throw new IllegalArgumentException("Must give the midi file name:\n"
+          + "(ex.: \"smoke.mid\")\n");
+    }
+    String midiFile = args[0];
     try {
-      MidiParser parser = new MidiParser("luigismansion.mid");
+      MidiParser parser = new MidiParser(midiFile);
       parser.writeMidiTextFile();
       System.exit(0);
     } catch (InvalidMidiDataException e) {
