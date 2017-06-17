@@ -53,7 +53,7 @@ public class MidiParser {
 
   }
 
-  public ArrayList<Note> translateMidiToNotes() throws InvalidMidiDataException {
+  private ArrayList<Note> translateMidiToNotes() throws InvalidMidiDataException {
 
     // We will return a list of notes
     ArrayList<Note> notes = new ArrayList<>();
@@ -89,7 +89,8 @@ public class MidiParser {
           int msgCommand = message.getCommand();
 
 
-          // If the message we have is a NOTE ON message add the pitch, tick pair to our arraylist.
+          // If the message we have is a NOTE ON message add the {pitch, tick, volume} to our
+          // arraylist.
           if (msgCommand == 144) {
 
             int pitch = message.getData1();
@@ -98,7 +99,7 @@ public class MidiParser {
             ArrayList<Integer[]> currentTrackNoteOns = allNoteOnMsgs.get(trackCount);
 
             // If NOTE ON volume == 0, treat as a NOTE OFF and find its matching NOTE ON starting
-            // message. Once found create a note and add it to the list.
+            // message. Once found, create a note and add it to the list.
             if (volume == 0) {
               for (int k = 0; k < currentTrackNoteOns.size(); k++) {
                 Integer[] noteOnMsg = currentTrackNoteOns.get(k);
@@ -107,16 +108,16 @@ public class MidiParser {
                   int startingBeat = startingTickMsgFired;
                   int endBeat = tickMsgFired;
 
-                  // Volume was 0, now make sure its the originals.
+                  // Volume was 0, now make sure its the original's.
                   volume = noteOnMsg[2];
 
                   // Percussion channel is 9.
                   // If the message is in the percussion channel, we get keep that channel.
                   // Current implementation of text Note does not account for channels
                   // unfortunately.
-//                if(message.getChannel() == 9){
-//                  channel = 9;
-//                }
+                  //if(message.getChannel() == 9){
+                  //  channel = 9;
+                  //}
 
 
                   // Create a note and store it.
@@ -129,12 +130,12 @@ public class MidiParser {
                 }
               }
             } else {
-              // This is a real NOTE ON message, add the pitch tick volume to NOTE ON arraylist.
+              // This is a real NOTE ON message, add the {pitch tick volume} to NOTE ON arraylist.
               currentTrackNoteOns.add(new Integer[]{pitch, tickMsgFired, volume});
             }
 
           }
-          // NOTE OFF message found. Find the matching NOTE ON and create a note.
+          // NOTE OFF message found. Find the matching NOTE ON message and create a note.
           else if (msgCommand == 128) {
             int pitch = message.getData1();
             int volume = message.getData2();
@@ -143,7 +144,8 @@ public class MidiParser {
             if (volume == 0) {
               volume = 64;
             }
-            //In our developing arraylist, we want to get the arraylist that represents this track.
+            //In our developing arraylist, we want to get the arraylist that represents this
+            // track's NOTE ON messages.
             ArrayList<Integer[]> currentTrackNoteOns = allNoteOnMsgs.get(trackCount);
             // Parse our arraylist and find this NOTE OFF msg's corresponding NOTE ON by looking
             // first NOTE ON that matches this NOTE OFF's pitch.
@@ -158,9 +160,9 @@ public class MidiParser {
                 // Percussion channel is 9.
                 // If the message is in the percussion channel, we get keep that channel.
                 // Current implementation of text Note does not account for channels unfortunately.
-//                if(message.getChannel() == 9){
-//                  channel = 9;
-//                }
+                //if(message.getChannel() == 9){
+                //  channel = 9;
+                //}
 
 
                 // convert information into a note and store it.
@@ -200,12 +202,12 @@ public class MidiParser {
    * @return The MIDI instrument value for the given track.
    */
   private int getInstrumentOfTrack(Track track) {
-    // instruments default to 0 if track has no Program Change
+    // instruments default to 0 if track has no Program Change message.
     int instrument = 0;
     // Cycle through all messages in current track.
     for (int i = 0; i < track.size(); i++) {
-      // set this track's instrument, we only need to look at the first instance of a note, all
-      // tracks share the same instrument.
+      // set this track's instrument, we only need to look at the first instance of a PROGRAM
+      // CHANGE message, all tracks should share the same instrument.
       MidiEvent instrumentEvent = track.get(i);
       if (instrumentEvent.getMessage() instanceof ShortMessage) {
         ShortMessage instrumentMessage = (ShortMessage) instrumentEvent.getMessage();
