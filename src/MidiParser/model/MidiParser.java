@@ -20,15 +20,14 @@ public class MidiParser {
   /**
    * Constructor for a MidiParser. Requires a pathname string to the MIDI file.
    *
-   * @param filePathName A pathname string to the MIDI file.
+   * @param midiFile The MIDI file.
    */
-  public MidiParser(String filePathName) throws MidiUnavailableException, IOException,
+  public MidiParser(File midiFile) throws MidiUnavailableException, IOException,
           InvalidMidiDataException {
-    String[] fileNameSplit = filePathName.split("\\.");
     // Get the file name without the extension.
-    this.fileName = fileNameSplit[0];
+    this.fileName = midiFile.getName().split("\\.")[0];
     // Store the midi as a sequence.
-    this.midi = MidiSystem.getSequence(new File(filePathName));
+    this.midi = MidiSystem.getSequence(midiFile);
     //  Calculate the midi's tempo by setting it as the sequence for a new MIDISystem Sequencer.
     Sequencer seq = MidiSystem.getSequencer();
     seq.open();
