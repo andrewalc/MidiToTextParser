@@ -9,18 +9,26 @@ import javax.sound.midi.*;
 
 
 /**
- * A skeleton for MIDI playback
+ * Class for creating a MIDI parser to convert a (.mid / .midi) file to a txt file with the
+ * appropriate tempo and notes needed to play in a CS3500 Music Editor.
  */
 public class MidiParser {
   private final Sequence midi;
   private String fileName;
   private int tempo;
 
-  public MidiParser(String fileName) throws MidiUnavailableException, IOException,
+  /**
+   * Constructor for a MidiParser. Requires a pathname string to the MIDI file.
+   *
+   * @param midiFile The MIDI file.
+   */
+  public MidiParser(File midiFile) throws MidiUnavailableException, IOException,
           InvalidMidiDataException {
-    String[] fileNameExt = fileName.split("\\.");
-    this.fileName = fileNameExt[0];
-    this.midi = MidiSystem.getSequence(new File(fileName));
+    // Get the file name without the extension.
+    this.fileName = midiFile.getName().split("\\.")[0];
+    // Store the midi as a sequence.
+    this.midi = MidiSystem.getSequence(midiFile);
+    //  Calculate the midi's tempo by setting it as the sequence for a new MIDISystem Sequencer.
     Sequencer seq = MidiSystem.getSequencer();
     seq.open();
     seq.setSequence(midi);
@@ -53,26 +61,38 @@ public class MidiParser {
 
   }
 
+  /**
+   * Translates MIDI messages in a midi file to an ArrayList of Notes, object which hold the
+   * proper note data necessary in a CS3500 midi txt file.
+   *
+   * @return All the notes that are played in MidiParser's midi.
+   */
   private ArrayList<Note> translateMidiToNotes() throws InvalidMidiDataException {
 
-    // We will return a list of notes
+    // We will return a list of all notes played in the midi.
     ArrayList<Note> notes = new ArrayList<>();
 
-    int trackCount = 0;
-    // We will store messages as int arrays with pitch tick fired and volume in this arraylist.
+    // Integer[] will store NOTE ON message information with pitch, tick fired, and volume.
     // {pitch, tick, volume}
 
     // ArrayList<Integer[]> represents the list of all messages contained in an arraylist of a
     // single track's messages.
 
-    ArrayList<ArrayList<Integer[]>> allNoteOnMsgs = new ArrayList<>();
+    // ArrayList<ArrayList<Integer[]>> represents the culmination of all tracks containing these
+    // NOTE ON messages. We store them here for now, then once we find a NOTE OFF message or a
+    // NOTE ON with a volume of 0, we look for the original message here and pair them, forming a
+    // note. When a note is formed, remove the NOTE ON message from this list.
+    ArrayList<ArrayList<Integer[]>> unpairedNoteOnMsgs = new ArrayList<>();
 
-
+    // The track we are currently parsing.
+    int trackCount = 0;
     for (Track track : midi.getTracks()) {
 
-      // The current track we are parsing needs a place in our {Pitch, Tick, volume} arraylist
-      allNoteOnMsgs.add(new ArrayList<Integer[]>());
+      // The current track we are parsing needs a place in our {Pitch, Tick, volume} arraylist.
+      unpairedNoteOnMsgs.add(new ArrayList<Integer[]>());
 
+      // Get the MIDI instrument for this track. Notes in the same track should share the same
+      // instrument.
       int instrument = getInstrumentOfTrack(track);
 
 
@@ -80,7 +100,8 @@ public class MidiParser {
       for (int i = 0; i < track.size(); i++) {
         MidiEvent event = track.get(i);
 
-        int channel = 0;
+        int channel = 0; // if we ever decide to implement proper percussion, tied to channel 10.
+
         // 144 = NOTE ON , 128 == NOTE OFF, if NOTE ON has volume (velocity) of 0 treat as NOTE OFF.
         if (event.getMessage() instanceof ShortMessage) {
           ShortMessage message = (ShortMessage) event.getMessage();
@@ -89,20 +110,19 @@ public class MidiParser {
           int msgCommand = message.getCommand();
 
 
-          // If the message we have is a NOTE ON message add the {pitch, tick, volume} to our
-          // arraylist.
+          // We found a NOTE ON message. {data1 is pitch, data2 is volume}
           if (msgCommand == 144) {
-
             int pitch = message.getData1();
             int volume = message.getData2();
-            // All messages of this track in our NOTE ON arraylist
-            ArrayList<Integer[]> currentTrackNoteOns = allNoteOnMsgs.get(trackCount);
+            //In our lost and found arraylist, we want to get the arraylist that represents this
+            // track's unpaired NOTE ON messages.
+            ArrayList<Integer[]> currTrackLostNoteOns = unpairedNoteOnMsgs.get(trackCount);
 
             // If NOTE ON volume == 0, treat as a NOTE OFF and find its matching NOTE ON starting
             // message. Once found, create a note and add it to the list.
             if (volume == 0) {
-              for (int k = 0; k < currentTrackNoteOns.size(); k++) {
-                Integer[] noteOnMsg = currentTrackNoteOns.get(k);
+              for (int k = 0; k < currTrackLostNoteOns.size(); k++) {
+                Integer[] noteOnMsg = currTrackLostNoteOns.get(k);
                 if (noteOnMsg[0] == pitch) {
                   int startingTickMsgFired = noteOnMsg[1];
                   int startingBeat = startingTickMsgFired;
@@ -119,19 +139,21 @@ public class MidiParser {
                   //  channel = 9;
                   //}
 
-
                   // Create a note and store it.
                   notes.add(new Note(startingBeat, endBeat, instrument, pitch, volume));
                   // remove the NOTE ON information from the arraylist of pitch, tick.
-                  currentTrackNoteOns.remove(noteOnMsg);
+                  currTrackLostNoteOns.remove(noteOnMsg);
                   // We found our 'fake' NOTE ON's corresponding NOTE ON. We don't need to look or
                   // remove anything else further.
                   break;
                 }
               }
-            } else {
-              // This is a real NOTE ON message, add the {pitch tick volume} to NOTE ON arraylist.
-              currentTrackNoteOns.add(new Integer[]{pitch, tickMsgFired, volume});
+
+            }
+            // If the NOTE ON isn't volume 0, then a real NOTE ON message, add the {pitch tick
+            // volume} to NOTE ON arraylist.
+            else {
+              currTrackLostNoteOns.add(new Integer[]{pitch, tickMsgFired, volume});
             }
 
           }
@@ -144,18 +166,17 @@ public class MidiParser {
             if (volume == 0) {
               volume = 64;
             }
-            //In our developing arraylist, we want to get the arraylist that represents this
-            // track's NOTE ON messages.
-            ArrayList<Integer[]> currentTrackNoteOns = allNoteOnMsgs.get(trackCount);
+            //In our lost and found arraylist, we want to get the arraylist that represents this
+            // track's unpaired NOTE ON messages.
+            ArrayList<Integer[]> currTrackLostNoteOns = unpairedNoteOnMsgs.get(trackCount);
             // Parse our arraylist and find this NOTE OFF msg's corresponding NOTE ON by looking
             // first NOTE ON that matches this NOTE OFF's pitch.
-            for (int j = 0; j < currentTrackNoteOns.size(); j++) {
-              Integer[] noteOnMsg = currentTrackNoteOns.get(j);
+            for (int j = 0; j < currTrackLostNoteOns.size(); j++) {
+              Integer[] noteOnMsg = currTrackLostNoteOns.get(j);
               if (noteOnMsg[0] == pitch) {
                 int startingTickFired = noteOnMsg[1];
                 int startingBeat = startingTickFired;
                 int endBeat = tickMsgFired;
-
 
                 // Percussion channel is 9.
                 // If the message is in the percussion channel, we get keep that channel.
@@ -164,11 +185,10 @@ public class MidiParser {
                 //  channel = 9;
                 //}
 
-
                 // convert information into a note and store it.
                 notes.add(new Note(startingBeat, endBeat, instrument, pitch, volume));
                 // remove the NOTE ON information from the arraylist of NOTE ONS
-                currentTrackNoteOns.remove(noteOnMsg);
+                currTrackLostNoteOns.remove(noteOnMsg);
                 // We found our NOTE OFF's corresponding NOTE ON. We don't need to look or remove
                 // anything else further.
                 break;
@@ -184,7 +204,7 @@ public class MidiParser {
     // We must filter out invalid notes with pitches that MIDI editor can't play.
     ArrayList<Note> badNotes = new ArrayList<>();
     for (Note note : notes) {
-      if (note.pitch > 131 || note.pitch < 24) {
+      if (note.getPitch() > 131 || note.getPitch() < 24) {
         badNotes.add(note);
       }
     }
