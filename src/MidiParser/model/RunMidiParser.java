@@ -1,5 +1,7 @@
 package MidiParser.model;
 
+import java.net.URISyntaxException;
+
 import MidiParser.view.MidiParserView;
 
 
@@ -8,7 +10,12 @@ import MidiParser.view.MidiParserView;
  */
 public class RunMidiParser {
   public static void main(String[] args) {
-    MidiParserView view = new MidiParserView();
+    MidiParserView view = null;
+    try {
+      view = new MidiParserView();
+    } catch (URISyntaxException e) {
+      e.printStackTrace();
+    }
     view.initialize();
   }
 }
