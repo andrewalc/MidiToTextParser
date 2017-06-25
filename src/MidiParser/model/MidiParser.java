@@ -14,8 +14,10 @@ import javax.sound.midi.*;
  */
 public class MidiParser {
   private final Sequence midi;
-  private String fileName;
+  private String filePathAndName;
   private int tempo;
+  private String successMessage = "";
+  private File midiFile;
 
   /**
    * Constructor for a MidiParser. Requires a pathname string to the MIDI file.
@@ -24,8 +26,9 @@ public class MidiParser {
    */
   public MidiParser(File midiFile) throws MidiUnavailableException, IOException,
           InvalidMidiDataException {
-    // Get the file name without the extension.
-    this.fileName = midiFile.getName().split("\\.")[0];
+    this.midiFile = midiFile;
+    // Get the file name without the extension and add .txt
+    this.filePathAndName = midiFile.getCanonicalPath().split("\\.")[0] + ".txt";
     // Store the midi as a sequence.
     this.midi = MidiSystem.getSequence(midiFile);
     //  Calculate the midi's tempo by setting it as the sequence for a new MIDISystem Sequencer.
@@ -43,7 +46,7 @@ public class MidiParser {
   public void writeMidiTextFile() {
     try {
       ArrayList<Note> notes = this.translateMidiToNotes();
-      FileWriter writer = new FileWriter(fileName + ".txt");
+      FileWriter writer = new FileWriter(this.filePathAndName);
       writer.append("tempo " + tempo + "\n");
       int noteCount = 0;
       for (Note note : notes) {
@@ -51,12 +54,14 @@ public class MidiParser {
         noteCount++;
       }
       writer.close();
-      System.out.println(noteCount + " notes at a tempo of " + tempo + " were exported as "
-              + fileName + ".txt");
+      this.successMessage = "<html><center>" + noteCount + " notes at a tempo of " + tempo + " " +
+              "were exported at:<br>" + filePathAndName + "</center></html>";
+      System.out.println(noteCount + " notes at a tempo of " + tempo + " were exported at\n"
+              + filePathAndName);
     } catch (InvalidMidiDataException e) {
-      e.printStackTrace();
+      e.getMessage();
     } catch (IOException e) {
-      e.printStackTrace();
+      e.getMessage();
     }
 
   }
@@ -240,6 +245,16 @@ public class MidiParser {
       }
     }
     return instrument;
+  }
+
+
+  /**
+   * Return the success message for the last midi file that was written.
+   *
+   * @return String containing the success message.
+   */
+  public String getSuccessMessage() {
+    return successMessage;
   }
 
 }
